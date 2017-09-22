@@ -1,0 +1,137 @@
+We can mock a database by using the Mockito.It allows us to create and configure mock objects.For testing a mock object simulates the database and ensures that the test conditions are always the same.
+                               There are two ways which we can use to mock the database connection. The first one is by mocking the java.sql classes itself and the second way is by mocking the DAO classes which talks to the database. 
+java.sql classes:
+DB Connection:
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+public class DBConnection {
+	
+	private Connection dbConnection;
+	
+	public void getDBConnection() throws ClassNotFoundException, SQLException {		
+		Class.forName("com.mysql.jdbc.Driver");
+		dbConnection = DriverManager.getConnection("jdbc:mysql://localhost:6666/jcg", "root", "password");		
+	}
+	
+DBConnectionTest://test and see how we can make use of Mockito to mock the database connection.
+
+import java.sql.Connection;
+import java.sql.Statement;
+
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+
+public class DBConnectionTest {
+	
+	@InjectMocks private DBConnection dbConnection;
+	@Mock private Connection mockConnection;
+	@Mock private Statement mockStatement;
+	
+	public int executeQuery(String query) throws ClassNotFoundException, SQLException {
+		return dbConnection.createStatement().executeUpdate(query);
+	}
+
+}
+
+ Annotated the DBConnection class with @InjectMocks annotation. This annotation marks a field on which injection need to be performed. The Connection and Statement classes of java.sql package are annotated with @Mock. In the setUp method we will call the initMocks() method. This Initializes objects annotated with Mockito annotations for given test class. 
+
+MYDAO:
+
+public class MyDao {
+	
+	public MyEntity findById(long id) {
+		
+		throw new UnsupportedOperationException();
+	}
+
+}
+
+Mock DAO classes. First we will define the DAO class. This class will has just the method which always throws UnsupportedOperationException
+
+MyEntity:
+
+public class MyEntity {
+	
+	private String firstName;
+	private String surname;
+	
+	public String getFirstName() {
+		return firstName;
+	}
+	
+	public void setFirstName(String firstName) {
+		this.firstName = firstName;
+	}
+	
+	public String getSurname() {
+		return surname;
+	}
+	
+	public void setSurname(String surname) {
+		this.surname = surname;
+	}
+}
+
+Now we will create a test class which will mock the MyDao class. In the first test we will verify that when we call the method of the service class the mock object has been called. We will do this by making use of the verify() method of the Mockito class.
+
+
+My Service Class:
+
+public class MyService {
+	
+	private MyDao myDao;
+	
+	public MyService(MyDao myDao) {
+		this.myDao = myDao;
+	}
+	
+	public MyEntity findById(long id) {
+		return myDao.findById(id);
+	}
+
+}
+
+In the second test we will create an entity object and will verify the results as below
+
+Service Test class:
+
+import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
+public class MyServiceTest {
+	
+	@Mock private MyDao myDao;
+	
+	@Rule public MockitoRule rule = MockitoJUnit.rule();
+	
+	@Test
+	public void testFindById() {
+		MockitoAnnotations.initMocks(this);
+		MyService myService = new MyService(myDao);
+		myService.findById(1L);
+		Mockito.verify(myDao).findById(1L);
+		
+	}
+	
+	@Test
+	public void test() {
+		MyService myService = new MyService(myDao);
+		Mockito.when(myDao.findById(1L)).thenReturn(createTestEntity());
+		MyEntity actual = myService.findById(1L);
+		Assert.assertEquals("My first name", actual.getFirstName());
+		Assert.assertEquals("My surname", actual.getSurname());
+		Mockito.verify(myDao).findById(1L);
+	}
+	
